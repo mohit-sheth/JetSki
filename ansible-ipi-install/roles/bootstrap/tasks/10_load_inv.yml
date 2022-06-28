@@ -37,6 +37,17 @@
         ocpinv_content: "{{ response.json }}"
   when: lab_name == "scale"
 
+- name: Download custom ocpinv.json
+  block:
+    - uri:
+        url: "{{ custom_ocpinv_file_url }}"
+        return_content: yes
+      register: response
+
+    - set_fact:
+        ocpinv_content: "{{ response.json }}"
+  when: lab_name == "custom"
+
 - name: Checking for inventory conflicts
   block:
     - name: read inv env file
