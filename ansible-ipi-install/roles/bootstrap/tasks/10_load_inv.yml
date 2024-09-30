@@ -18,7 +18,7 @@
 - name: Download ocpinv.json
   block:
     - uri:
-        url: "{{ alias.lab_url }}/cloud/{{ cloud_name }}_ocpinventory.json"
+        url: "{{ alias.lab_url }}/instack/{{ cloud_name }}_ocpinventory.json"
         return_content: yes
       register: response
     
@@ -29,7 +29,7 @@
 - name: Download ocpinv.json
   block:
     - uri:
-        url: "{{ scale.lab_url }}/cloud/{{ cloud_name }}_ocpinventory.json"
+        url: "{{ scale.lab_url }}/instack/{{ cloud_name }}_ocpinventory.json"
         return_content: yes
       register: response
     
@@ -116,6 +116,26 @@
   vars:
     lab_vars: "{{ (lab_name == 'scale') | ternary(scale, alias) }}"
   when: lab_name in ['scale', 'alias']
+
+# This works!
+- block:
+  # If possible add an additional check that the number of control-plane nodes is at least 3
+  - name: print control-plane-nodes
+    set_fact:
+        control_plane_machines: "{{ ocp_node_content | to_json | from_json | community.general.json_query(server_name_query) }}"
+    vars:
+      server_name_query: "nodes[?contains(pm_addr, '{{ control_plane_hardware_type }}' )]"
+
+  - name: print worker nodes
+    set_fact:
+        worker_node_machines: "{{ ocp_node_content | to_json | from_json | community.general.json_query(server_name_query) }}"
+    vars:
+      server_name_query: "nodes[?contains(pm_addr, '{{ workers_hardware_type }}' )]"
+
+  - name: set ordered ocp_node_content
+    set_fact:
+      ocp_node_content: "{ 'nodes': {{ control_plane_machines | union( worker_node_machines ) }} }"
+  when: control_plane_hardware_type is defined and control_plane_hardware_type != ""
 
 - name: dump deploying master nodes to a file
   copy:
@@ -328,12 +348,12 @@
   with_items:
     - "{{master_fqdns }}"
 
-- name: Fail on different rack(f04)
+- name: Fail on different rack(f18)
   fail:
-    msg: If one of the master nodes is in rack f04, all of them need to be in the same rack
+    msg: If one of the master nodes is in rack f18, all of them need to be in the same rack
   when: 
     - racks is defined
-    - "'f04' in racks"
+    - "'f18' in racks"
     - "racks | unique |  length > 1"
 
 - name: Fail when worker nodes have R620s and R630s
